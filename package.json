@@ -1,8 +1,10 @@
 {
-  "name": "codex",
-  "displayName": "codex",
+  "name": "wwbweibo-codex",
+  "displayName": "wwbweibo-codex",
   "description": "",
   "version": "0.0.5",
+  "repository": "https://github.com/wwbweibo/vsc-codex",
+  "publisher": "wwbweibo",
   "engines": {
     "vscode": "^1.76.0"
   },
