@@ -9,9 +9,9 @@ import CodexClient from './serivces/codex';
 export function activate(context: vscode.ExtensionContext) {
 	let model = vscode.workspace.getConfiguration("codex").get("model") as string;
 	let apiKey = vscode.workspace.getConfiguration("codex").get("apikey") as string;
-	let generateMaxToken = vscode.workspace.getConfiguration("codex").get("generateMaxToken") as number;
-	let explainMaxToken = vscode.workspace.getConfiguration("codex").get("explainMaxToken") as number;
-	let client = new CodexClient(model, apiKey, generateMaxToken, explainMaxToken);
+	let maxToken = vscode.workspace.getConfiguration("codex").get("maxToken") as number;
+	let timeout = vscode.workspace.getConfiguration("codex").get("timeout") as number;
+	let client = new CodexClient(model, apiKey,maxToken, timeout);
 
 	if (apiKey === "") {
 		vscode.window.showErrorMessage("请在设置中配置您的openai apikey");
@@ -59,14 +59,14 @@ export function activate(context: vscode.ExtensionContext) {
 		let selection = editor.selection;
 		let text = editor.document.getText(selection);//选择文本
 		try {
-			let result = await client.requestCodeExplain(text);
+			let result = await client.general(text);
 			editor.edit((builder) => {
 				builder.insert(selection.end, "\n" + result);
 			});
 		} catch (error: any) {
 			await vscode.window.showErrorMessage(error.toString());
 		}
-	})
+	});
 
 	context.subscriptions.push(complete, explain, common);
 }

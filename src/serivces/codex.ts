@@ -1,72 +1,120 @@
 import axios, { AxiosError, AxiosResponse } from "axios";
+import { stringify } from "querystring";
+import { json } from "stream/consumers";
+import { runInThisContext } from "vm";
 import * as vscode from "vscode";
 
 export default class CodexClient {
     apiKey: string;
-    generateMaxToken: number;
-    explainMaxToken: number;
+    maxToken: number;
     model: string;
-    constructor(model: string, apiKey: string, generateMaxToken: number, explainMaxToken: number) {
+    timeout: number;
+    constructor(model: string, apiKey: string, maxToken: number, timeout: number) {
         this.model = model;
         this.apiKey = apiKey;
-        this.generateMaxToken = generateMaxToken;
-        this.explainMaxToken = explainMaxToken;
+        this.maxToken = maxToken;
+        this.timeout = timeout;
     }
     completeEndpoint = "https://api.openai.com/v1/completions";
+    chatEndpoint = "https://api.openai.com/v1/chat/completions";
     async requestCodeComplete(comment: string, language: string): Promise<string> {
-        let result = "";
-        let request = {
-            "prompt": "// " + language + "\n" + comment,
-            "max_tokens": this.generateMaxToken,
-            "temperature": 0,
-            "model": this.model,
-        };
-        return await this.requestOpenAi(request);
+        if (this.model === "gpt-3.5-turbo") {
+            return await this.requestWithGPTModel(comment);
+        }
+        else {
+            let request = {
+                "prompt": "// " + language + "\n" + comment,
+                "max_tokens": this.maxToken,
+                "temperature": 0,
+                "model": this.model,
+            };
+            return await this.requestCodexModel(request);
+        }
     }
     async requestCodeExplain(code: string): Promise<string> {
-        let reqeust = {
-            "prompt": code + "\n" + "// 上面这段代码是什么意思",
-            "max_tokens": this.explainMaxToken,
-            "temperature": 0.1,
-            "model": this.model,
-        };
-        return await this.requestOpenAi(reqeust);
+        if (this.model === "gpt-3.5-turbo") {
+            return await this.requestWithGPTModel(code);
+        }
+        else {
+            let reqeust = {
+                "prompt": code + "\n" + "// 上面这段代码是什么意思",
+                "max_tokens": this.maxToken,
+                "temperature": 0.1,
+                "model": this.model,
+            };
+            return await this.requestCodexModel(reqeust);
+        }
     }
 
     async general(text: string): Promise<string> {
-        let reqeust = {
-            "prompt": text,
-            "max_tokens": this.explainMaxToken,
-            "temperature": 0.1,
-            "model": this.model,
-        };
-        return await this.requestOpenAi(reqeust);
+        if (this.model === "gpt-3.5-turbo") {
+            return await this.requestWithGPTModel(text);
+        } else {
+            let reqeust = {
+                "prompt": text,
+                "max_tokens": this.maxToken,
+                "temperature": 0.1,
+                "model": this.model,
+            };
+            return await this.requestCodexModel(reqeust);
+        }
     }
 
-    private async requestOpenAi(requestData: object): Promise<string> {
+    async requestWithGPTModel(text: string): Promise<string> {
         try {
-            let resp = await axios({
-                method: "POST",
-                data: requestData,
-                url: this.completeEndpoint,
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": "Bearer " + this.apiKey
-                },
-                timeout: 60000
-            });
-            if (resp.status === 200) {
-                return resp.data.choices[0].text;
+            let reqeust = {
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "you are a veteran coder."
+                    },
+                    {
+                        "role": "user",
+                        "content": text
+                    }
+                ],
+                "model": this.model,
+            };
+            let response = await this.requestOpenAi(reqeust, this.chatEndpoint);
+            let responseContent = response.data.choices[0].message.content as string;
+            return "\n//" + responseContent.replace("\n\n", "\n\n//");
+        } catch (err:any) {
+            let errmessage = err.toString();
+            if (err instanceof AxiosError) {
+                await vscode.window.showErrorMessage(errmessage + "\n" + JSON.stringify((err as AxiosError).response?.data));
+            } else {
+                await vscode.window.showErrorMessage(errmessage);
             }
+            return "";
         }
-        catch (err: any) {
+    }
+
+    async requestCodexModel(request: object): Promise<string> {
+        try{
+            let response = await this.requestOpenAi(request, this.completeEndpoint);
+            return response.data.choices[0].text;
+        } catch(err: any) {
             let errmessage = err.toString();
             if (err instanceof AxiosError) {
                 await vscode.window.showErrorMessage( errmessage + "\n" + JSON.stringify((err as AxiosError).response?.data));
             } else {
                 await vscode.window.showErrorMessage(errmessage);
             }
+            return "";
         }
-        return "";
+
+    }
+
+    private async requestOpenAi(requestData: object, url: string): Promise<AxiosResponse> {
+        return await axios({
+            method: "POST",
+            data: requestData,
+            url: url,
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + this.apiKey
+            },
+            timeout: this.timeout
+        });
     }
 } 

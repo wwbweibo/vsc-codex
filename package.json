@@ -2,7 +2,7 @@
   "name": "codex",
   "displayName": "codex",
   "description": "",
-  "version": "0.0.2",
+  "version": "0.0.5",
   "engines": {
     "vscode": "^1.76.0"
   },
@@ -18,22 +18,22 @@
         "codex.model": {
           "type":"string",
           "default": "code-davinci-002",
-          "description": "调用的模型, code-davinci-002, code-cushman-001"
+          "description": "调用的模型, code-davinci-002, code-cushman-001, gpt-3.5-turbo"
+        },
+        "codex.timeout": {
+          "type":"number",
+          "default": 60000,
+          "description": "请求openapi接口的延迟(in ms)"
         },
         "codex.apikey": {
           "type": "string",
           "default": "",
           "description": "用于调用openapi接口的密钥"
         },
-        "codex.generateMaxToken": {
+        "codex.maxToken": {
           "type": "number",
           "default": 512,
-          "description": "使用代码生成时返回的最大token数量"
-        },
-        "codex.explainMaxToken": {
-          "type": "number",
-          "default": 512,
-          "description": "使用代码解释时返回的最大token数量"
+          "description": "接口返回的最大token数量"
         }
       }
     },
