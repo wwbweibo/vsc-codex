@@ -1,7 +1,4 @@
 import axios, { AxiosError, AxiosResponse } from "axios";
-import { stringify } from "querystring";
-import { json } from "stream/consumers";
-import { runInThisContext } from "vm";
 import * as vscode from "vscode";
 
 export default class CodexClient {
@@ -15,52 +12,20 @@ export default class CodexClient {
         this.maxToken = maxToken;
         this.timeout = timeout;
     }
-    completeEndpoint = "https://api.openai.com/v1/completions";
     chatEndpoint = "https://api.openai.com/v1/chat/completions";
     async requestCodeComplete(comment: string, language: string): Promise<string> {
-        if (this.model === "gpt-3.5-turbo") {
-            return await this.requestWithGPTModel(comment);
-        }
-        else {
-            let request = {
-                "prompt": "// " + language + "\n" + comment,
-                "max_tokens": this.maxToken,
-                "temperature": 0,
-                "model": this.model,
-            };
-            return await this.requestCodexModel(request);
-        }
+        return await this.requestWithGPTModel(comment);
     }
     async requestCodeExplain(code: string): Promise<string> {
-        if (this.model === "gpt-3.5-turbo") {
-            return await this.requestWithGPTModel(code);
-        }
-        else {
-            let reqeust = {
-                "prompt": code + "\n" + "// 上面这段代码是什么意思",
-                "max_tokens": this.maxToken,
-                "temperature": 0.1,
-                "model": this.model,
-            };
-            return await this.requestCodexModel(reqeust);
-        }
+        return await this.requestWithGPTModel(code);
     }
 
     async general(text: string): Promise<string> {
-        if (this.model === "gpt-3.5-turbo") {
-            return await this.requestWithGPTModel(text);
-        } else {
-            let reqeust = {
-                "prompt": text,
-                "max_tokens": this.maxToken,
-                "temperature": 0.1,
-                "model": this.model,
-            };
-            return await this.requestCodexModel(reqeust);
-        }
+        return await this.requestWithGPTModel(text);
     }
 
     async requestWithGPTModel(text: string): Promise<string> {
+        text = text.replace(/\/\//g, '');
         try {
             let reqeust = {
                 "messages": [
@@ -77,7 +42,8 @@ export default class CodexClient {
             };
             let response = await this.requestOpenAi(reqeust, this.chatEndpoint);
             let responseContent = response.data.choices[0].message.content as string;
-            return "\n//" + responseContent.replace("\n\n", "\n\n//");
+            // 需要处理所有的代码块内容为代码，代码块总是以 ```开头，```结束
+            return await this.parseReponseToValidCode(responseContent);
         } catch (err:any) {
             let errmessage = err.toString();
             if (err instanceof AxiosError) {
@@ -89,22 +55,26 @@ export default class CodexClient {
         }
     }
 
-    async requestCodexModel(request: object): Promise<string> {
-        try{
-            let response = await this.requestOpenAi(request, this.completeEndpoint);
-            return response.data.choices[0].text;
-        } catch(err: any) {
-            let errmessage = err.toString();
-            if (err instanceof AxiosError) {
-                await vscode.window.showErrorMessage( errmessage + "\n" + JSON.stringify((err as AxiosError).response?.data));
-            } else {
-                await vscode.window.showErrorMessage(errmessage);
-            }
+    async parseReponseToValidCode(text: string): Promise<string> {
+        let idxStart = text.indexOf('```');
+        if (idxStart < 0) {
+            return text;
+        }
+        let txt = text.substring(0, idxStart);
+        let codeStr = text.substring(idxStart);
+        codeStr = codeStr.replace(/```[\w]+\n/, '');
+        let idxEnd = codeStr.indexOf('```');
+        txt = txt.replace(/\n/g, "\n//");
+        let code = codeStr.substring(0, idxEnd);
+        // for text left, reinvoke this function
+        let remain = codeStr.substring(idxEnd+3);
+        if (remain.length === 0) {
             return "";
         }
-
+        let left = await this.parseReponseToValidCode(remain);
+        return txt + code + left;
     }
-
+ 
     private async requestOpenAi(requestData: object, url: string): Promise<AxiosResponse> {
         return await axios({
             method: "POST",
