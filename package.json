@@ -2,7 +2,7 @@
   "name": "wwbweibo-codex",
   "displayName": "wwbweibo-codex",
   "description": "",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "repository": "https://github.com/wwbweibo/vsc-codex",
   "publisher": "wwbweibo",
   "engines": {
@@ -19,8 +19,8 @@
       "properties": {
         "codex.model": {
           "type":"string",
-          "default": "code-davinci-002",
-          "description": "调用的模型, code-davinci-002, code-cushman-001, gpt-3.5-turbo"
+          "default": "gpt-3.5-turbo",
+          "description": "调用的模型, gpt-3.5-turbo"
         },
         "codex.timeout": {
           "type":"number",

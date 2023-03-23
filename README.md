@@ -19,6 +19,11 @@ None
 
 ## Release Notes
 
+### 0.0.6 
+
+1. remove codex related code.
+2. add parser for gpt model, the response will be more appropriate for editor.
+
 ### 0.0.5
 
 first release version.
